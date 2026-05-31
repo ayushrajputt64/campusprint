@@ -15,9 +15,8 @@ db            = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
-# ── Razorpay Keys (from environment) ─────────────
-RAZORPAY_KEY    = os.environ.get('SvoqP8nKPYfwG5')
-RAZORPAY_SECRET = os.environ.get('gzAEP3STkfZmIPJBnXRUxsWY')
+RAZORPAY_KEY    = os.environ.get('RAZORPAY_KEY')
+RAZORPAY_SECRET = os.environ.get('RAZORPAY_SECRET')
 client          = razorpay.Client(auth=(RAZORPAY_KEY, RAZORPAY_SECRET))
 
 UPLOAD_FOLDER = 'uploads'
@@ -41,8 +40,12 @@ class User(UserMixin, db.Model):
     plan          = db.Column(db.String(20), default='none')
     sub_end       = db.Column(db.DateTime)
 
-    def set_password(self, p):   self.password_hash = generate_password_hash(p)
-    def check_password(self, p): return check_password_hash(self.password_hash, p)
+    def set_password(self, p):
+        self.password_hash = generate_password_hash(p)
+
+    def check_password(self, p):
+        return check_password_hash(self.password_hash, p)
+
     def sub_active(self):
         return self.sub_end and datetime.datetime.utcnow() < self.sub_end
 
@@ -60,7 +63,8 @@ class Order(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
 
 @login_manager.user_loader
-def load_user(uid): return User.query.get(int(uid))
+def load_user(uid):
+    return User.query.get(int(uid))
 
 def allowed_file(f):
     return '.' in f and f.rsplit('.', 1)[1].lower() in ALLOWED
@@ -77,7 +81,8 @@ def calculate_price(pages, print_type, copies):
     return pages * rate * copies
 
 @app.route('/')
-def home(): return render_template('index.html')
+def home():
+    return render_template('index.html')
 
 @app.route('/register', methods=['GET','POST'])
 def register():
@@ -88,7 +93,8 @@ def register():
             return render_template('register.html', error='Email already registered!')
         u = User(name=name, email=email, phone=phone)
         u.set_password(pw)
-        db.session.add(u); db.session.commit()
+        db.session.add(u)
+        db.session.commit()
         login_user(u)
         return redirect(url_for('dashboard'))
     return render_template('register.html')
@@ -118,12 +124,14 @@ def dashboard():
 
 @app.route('/subscribe')
 @login_required
-def subscribe(): return render_template('subscribe.html')
+def subscribe():
+    return render_template('subscribe.html')
 
 @app.route('/activate/<plan>')
 @login_required
 def activate(plan):
-    if plan not in PLANS: return redirect(url_for('subscribe'))
+    if plan not in PLANS:
+        return redirect(url_for('subscribe'))
     p = PLANS[plan]
     current_user.plan          = plan
     current_user.bw_credits    += p['bw']
@@ -166,13 +174,22 @@ def use_credits():
     copies     = int(request.form['copies'])
     filepath   = request.form['filepath']
     total      = pages * copies
-    if print_type == 'bw': current_user.bw_credits    -= total
-    else:                  current_user.color_credits -= total
-    order = Order(user_id=current_user.id, filename=filename,
-                  pages=pages, print_type=print_type,
-                  copies=copies, amount=0,
-                  paid_by='credits', status='printing')
-    db.session.add(order); db.session.commit()
+    if print_type == 'bw':
+        current_user.bw_credits -= total
+    else:
+        current_user.color_credits -= total
+    order = Order(
+        user_id    = current_user.id,
+        filename   = filename,
+        pages      = pages,
+        print_type = print_type,
+        copies     = copies,
+        amount     = 0,
+        paid_by    = 'credits',
+        status     = 'printing'
+    )
+    db.session.add(order)
+    db.session.commit()
     return render_template('success.html', order=order)
 
 @app.route('/pay', methods=['POST'])
@@ -184,25 +201,35 @@ def pay():
     copies     = int(request.form['copies'])
     filepath   = request.form['filepath']
     price      = calculate_price(pages, print_type, copies)
-    order = Order(user_id=current_user.id, filename=filename,
-                  pages=pages, print_type=print_type,
-                  copies=copies, amount=price,
-                  paid_by='razorpay', status='pending')
-    db.session.add(order); db.session.commit()
+    order = Order(
+        user_id    = current_user.id,
+        filename   = filename,
+        pages      = pages,
+        print_type = print_type,
+        copies     = copies,
+        amount     = price,
+        paid_by    = 'razorpay',
+        status     = 'pending'
+    )
+    db.session.add(order)
+    db.session.commit()
     rzp_order = client.order.create({
         'amount'  : int(price * 100),
         'currency': 'INR',
         'receipt' : f'order_{order.id}'
     })
     return render_template('payment.html',
-        filename=filename, pages=pages,
-        print_type=print_type, copies=copies,
-        price=price, amount_paise=int(price * 100),
-        razorpay_key=RAZORPAY_KEY,
-        razorpay_order_id=rzp_order['id'],
-        order_id=order.id,
-        user_name=current_user.name,
-        user_email=current_user.email)
+        filename          = filename,
+        pages             = pages,
+        print_type        = print_type,
+        copies            = copies,
+        price             = price,
+        amount_paise      = int(price * 100),
+        razorpay_key      = RAZORPAY_KEY,
+        razorpay_order_id = rzp_order['id'],
+        order_id          = order.id,
+        user_name         = current_user.name,
+        user_email        = current_user.email)
 
 @app.route('/payment-success')
 @login_required
@@ -212,7 +239,9 @@ def payment_success():
     razorpay_order_id = request.args.get('razorpay_order_id')
     signature         = request.args.get('razorpay_signature')
     msg      = f'{razorpay_order_id}|{payment_id}'.encode()
-    expected = hmac.new(RAZORPAY_SECRET.encode(), msg, hashlib.sha256).hexdigest()
+    expected = hmac.new(
+        RAZORPAY_SECRET.encode(), msg, hashlib.sha256
+    ).hexdigest()
     order = Order.query.get(order_id)
     if expected == signature:
         order.payment_id = payment_id
