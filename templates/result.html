@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CampusPrint - Summary</title>
+    <style>
+        body { font-family: Arial; text-align: center; padding: 40px; background: #f5f5f5; }
+        h1   { color: #185FA5; }
+        .box {
+            background: white; border-radius: 12px;
+            padding: 30px; max-width: 400px;
+            margin: 30px auto; box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .price { font-size: 42px; font-weight: bold; color: #185FA5; margin: 20px 0; }
+        .detail { color: gray; font-size: 15px; margin: 6px 0; }
+        .btn {
+            display: block; padding: 12px;
+            border-radius: 8px; font-size: 16px;
+            cursor: pointer; width: 100%;
+            margin-top: 10px; text-decoration: none;
+            border: none; color: white;
+            background: #185FA5;
+        }
+        .btn-green { background: #1D9E75; }
+        a.back { display: inline-block; margin-top: 14px; color: #185FA5; }
+    </style>
+</head>
+<body>
+    <h1>Your Print Summary</h1>
+    <div class="box">
+        <div class="detail">📄 File: <strong>{{ filename }}</strong></div>
+        <div class="detail">📃 Pages: <strong>{{ pages }}</strong></div>
+        <div class="detail">🖨️ Type: <strong>{{ 'Black & White' if print_type == 'bw' else 'Color' }}</strong></div>
+        <div class="detail">📋 Copies: <strong>{{ copies }}</strong></div>
+        <div class="price">₹{{ price }}</div>
+
+        {% if has_credits %}
+        <!-- Use credits button -->
+        <form action="/use-credits" method="POST">
+            <input type="hidden" name="filename"   value="{{ filename }}">
+            <input type="hidden" name="print_type" value="{{ print_type }}">
+            <input type="hidden" name="pages"      value="{{ pages }}">
+            <input type="hidden" name="copies"     value="{{ copies }}">
+            <input type="hidden" name="filepath"   value="{{ filepath }}">
+            <button type="submit" class="btn btn-green">
+                ✅ Use My Credits (Free!)
+            </button>
+        </form>
+        {% endif %}
+
+        <a class="btn" href="#">💳 Pay with Razorpay (Coming Day 4)</a>
+    </div>
+    <a class="back" href="/upload">← Upload another file</a>
+</body>
+</html>

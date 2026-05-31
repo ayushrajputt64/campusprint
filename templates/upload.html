@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CampusPrint - Upload</title>
+    <style>
+        body {
+            font-family: Arial;
+            text-align: center;
+            padding: 40px;
+            background: #f5f5f5;
+        }
+        h1 { color: #185FA5; }
+        p  { color: gray; }
+
+        .upload-box {
+            border: 2px dashed #185FA5;
+            border-radius: 12px;
+            padding: 40px;
+            background: white;
+            max-width: 500px;
+            margin: 30px auto;
+        }
+
+        select, input {
+            width: 100%;
+            padding: 10px;
+            margin: 8px 0;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            font-size: 15px;
+        }
+
+        button {
+            background: #185FA5;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 10px;
+            width: 100%;
+        }
+
+        button:hover { background: #0d4a8a; }
+
+        .back { 
+            display: inline-block;
+            margin-top: 20px;
+            color: #185FA5;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Upload Your File</h1>
+    <p>PDF, Word, PowerPoint or Image — max 50MB</p>
+
+    <div class="upload-box">
+        <form action="/upload" method="POST" enctype="multipart/form-data">
+            
+            <!-- File picker -->
+            <input type="file" name="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.jpg,.png" required>
+
+            <!-- Print type -->
+            <select name="print_type">
+                <option value="bw">Black & White — ₹3 per page</option>
+                <option value="color">Color — ₹5 per page</option>
+            </select>
+
+            <!-- Number of copies -->
+            <select name="copies">
+                <option value="1">1 Copy</option>
+                <option value="2">2 Copies</option>
+                <option value="3">3 Copies</option>
+                <option value="4">4 Copies</option>
+                <option value="5">5 Copies</option>
+                <option value="6">6 Copies</option>
+                <option value="7">7 Copies</option>
+                <option value="8">8 Copies</option>
+                <option value="9">9 Copies</option>
+                <option value="10">10 Copies</option>
+            </select>
+
+            <!-- Submit button -->
+            <button type="submit">Upload & Calculate Price</button>
+
+        </form>
+    </div>
+
+    <a class="back" href="/">← Back to Home</a>
+
+</body>
+</html>

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CampusPrint - Dashboard</title>
+    <style>
+        body { font-family: Arial; text-align: center; padding: 40px; background: #f5f5f5; }
+        h1   { color: #185FA5; }
+        .box {
+            background: white; border-radius: 12px;
+            padding: 30px; max-width: 550px;
+            margin: 20px auto; box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .credits { display: flex; justify-content: space-around; margin: 20px 0; }
+        .credit-box { background: #E6F1FB; border-radius: 10px; padding: 16px 24px; }
+        .credit-box .num { font-size: 32px; font-weight: bold; color: #185FA5; }
+        .credit-box .lbl { font-size: 13px; color: gray; }
+        .btn {
+            display: inline-block; background: #185FA5;
+            color: white; padding: 12px 24px;
+            border-radius: 8px; text-decoration: none;
+            font-size: 15px; margin: 6px;
+        }
+        .btn-green  { background: #1D9E75; }
+        .btn-gray   { background: gray; }
+        table { width: 100%; border-collapse: collapse; margin-top: 16px; text-align: left; }
+        th { background: #E6F1FB; padding: 10px; font-size: 13px; color: #0C447C; }
+        td { padding: 10px; font-size: 13px; border-bottom: 1px solid #eee; color: gray; }
+        .done    { color: #1D9E75; font-weight: bold; }
+        .pending { color: orange; font-weight: bold; }
+        p { color: gray; }
+    </style>
+</head>
+<body>
+    <h1>Welcome, {{ user.name }}! 👋</h1>
+    <p>Plan: <strong>{{ user.plan.title() }}</strong>
+       {% if user.sub_active() %}
+           ✅ Active
+       {% else %}
+           ❌ No active plan
+       {% endif %}
+    </p>
+
+    <!-- Credits box -->
+    <div class="box">
+        <h2>Your Credits</h2>
+        <div class="credits">
+            <div class="credit-box">
+                <div class="num">{{ user.bw_credits }}</div>
+                <div class="lbl">B&W pages left</div>
+            </div>
+            <div class="credit-box">
+                <div class="num">{{ user.color_credits }}</div>
+                <div class="lbl">Color pages left</div>
+            </div>
+        </div>
+        <a class="btn"       href="/upload">🖨️ Print Now</a>
+        <a class="btn-green btn" href="/subscribe">⭐ Subscribe</a>
+        <a class="btn-gray  btn" href="/logout">Logout</a>
+    </div>
+
+    <!-- Recent orders -->
+    <div class="box">
+        <h2>Recent Prints</h2>
+        {% if orders %}
+        <table>
+            <tr>
+                <th>File</th>
+                <th>Pages</th>
+                <th>Type</th>
+                <th>Amount</th>
+                <th>Status</th>
+            </tr>
+            {% for o in orders %}
+            <tr>
+                <td>{{ o.filename }}</td>
+                <td>{{ o.pages }} × {{ o.copies }}</td>
+                <td>{{ 'B&W' if o.print_type == 'bw' else 'Color' }}</td>
+                <td>{{ '₹' + o.amount|string if o.amount > 0 else 'Credits' }}</td>
+                <td class="{{ 'done' if o.status == 'printing' else 'pending' }}">
+                    {{ o.status.title() }}
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+        {% else %}
+            <p>No prints yet — upload your first file!</p>
+        {% endif %}
+    </div>
+
+</body>
+</html>

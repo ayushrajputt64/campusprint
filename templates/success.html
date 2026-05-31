@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CampusPrint - Printing!</title>
+    <style>
+        body { font-family: Arial; text-align: center; padding: 60px; background: #f5f5f5; }
+        .box {
+            background: white; border-radius: 12px;
+            padding: 40px; max-width: 400px;
+            margin: 0 auto; box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .icon  { font-size: 60px; margin-bottom: 16px; }
+        h1     { color: #1D9E75; }
+        p      { color: gray; }
+        .detail { color: gray; font-size: 15px; margin: 6px 0; }
+        .btn {
+            display: inline-block; background: #185FA5;
+            color: white; padding: 12px 24px;
+            border-radius: 8px; text-decoration: none;
+            font-size: 15px; margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <div class="icon">🖨️</div>
+        <h1>Printing Now!</h1>
+        <p>Your file has been sent to the printer</p>
+        <div class="detail">📄 {{ order.filename }}</div>
+        <div class="detail">📃 {{ order.pages }} pages × {{ order.copies }} copies</div>
+        <div class="detail">✅ Paid by: Credits</div>
+        <br>
+        <p>Please collect your printout from the kiosk!</p>
+        <a class="btn" href="/dashboard">← Back to Dashboard</a>
+    </div>
+</body>
+</html>
