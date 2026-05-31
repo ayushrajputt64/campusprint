@@ -4,5 +4,6 @@ flask-login
 werkzeug
 razorpay
 PyPDF2
-img2pdf
 gunicorn
+pillow
+python-dotenv
