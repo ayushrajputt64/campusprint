@@ -1,25 +1,21 @@
 from dotenv import load_dotenv
 load_dotenv()
+
 from flask import Flask, render_template, request, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-import os
-import PyPDF2
-import datetime
-import razorpay
-import hmac
-import hashlib
+import os, PyPDF2, datetime, razorpay, hmac, hashlib
 
 app = Flask(__name__)
-app.config['SECRET_KEY']              = 'campusprint2026'
+app.config['SECRET_KEY']              = os.environ.get('SECRET_KEY', 'campusprint2026')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
 
 db            = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
-# ── Razorpay Keys ────────────────────────────────
+# ── Razorpay Keys (from environment) ─────────────
 RAZORPAY_KEY    = os.environ.get('SvoqP8nKPYfwG5')
 RAZORPAY_SECRET = os.environ.get('gzAEP3STkfZmIPJBnXRUxsWY')
 client          = razorpay.Client(auth=(RAZORPAY_KEY, RAZORPAY_SECRET))
@@ -28,14 +24,12 @@ UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 ALLOWED = {'pdf', 'doc', 'docx', 'ppt', 'pptx', 'jpg', 'jpeg', 'png'}
 
-# ── Subscription Plans ───────────────────────────
 PLANS = {
     'basic'   : {'price': 799,  'bw': 150, 'color': 30},
     'standard': {'price': 1500, 'bw': 350, 'color': 100},
     'premium' : {'price': 2499, 'bw': 700, 'color': 250},
 }
 
-# ── Database Models ──────────────────────────────
 class User(UserMixin, db.Model):
     id            = db.Column(db.Integer, primary_key=True)
     name          = db.Column(db.String(100))
@@ -47,16 +41,10 @@ class User(UserMixin, db.Model):
     plan          = db.Column(db.String(20), default='none')
     sub_end       = db.Column(db.DateTime)
 
-    def set_password(self, p):
-        self.password_hash = generate_password_hash(p)
-
-    def check_password(self, p):
-        return check_password_hash(self.password_hash, p)
-
+    def set_password(self, p):   self.password_hash = generate_password_hash(p)
+    def check_password(self, p): return check_password_hash(self.password_hash, p)
     def sub_active(self):
-        if not self.sub_end:
-            return False
-        return datetime.datetime.utcnow() < self.sub_end
+        return self.sub_end and datetime.datetime.utcnow() < self.sub_end
 
 class Order(db.Model):
     id         = db.Column(db.Integer, primary_key=True)
@@ -67,16 +55,15 @@ class Order(db.Model):
     copies     = db.Column(db.Integer)
     amount     = db.Column(db.Float)
     paid_by    = db.Column(db.String(20))
+    payment_id = db.Column(db.String(100))
     status     = db.Column(db.String(20), default='pending')
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
 
 @login_manager.user_loader
-def load_user(uid):
-    return User.query.get(int(uid))
+def load_user(uid): return User.query.get(int(uid))
 
-# ── Helpers ──────────────────────────────────────
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED
+def allowed_file(f):
+    return '.' in f and f.rsplit('.', 1)[1].lower() in ALLOWED
 
 def count_pages(filepath):
     ext = filepath.rsplit('.', 1)[1].lower()
@@ -89,10 +76,8 @@ def calculate_price(pages, print_type, copies):
     rate = 3 if print_type == 'bw' else 8
     return pages * rate * copies
 
-# ── Routes ───────────────────────────────────────
 @app.route('/')
-def home():
-    return render_template('index.html')
+def home(): return render_template('index.html')
 
 @app.route('/register', methods=['GET','POST'])
 def register():
@@ -103,8 +88,7 @@ def register():
             return render_template('register.html', error='Email already registered!')
         u = User(name=name, email=email, phone=phone)
         u.set_password(pw)
-        db.session.add(u)
-        db.session.commit()
+        db.session.add(u); db.session.commit()
         login_user(u)
         return redirect(url_for('dashboard'))
     return render_template('register.html')
@@ -134,14 +118,12 @@ def dashboard():
 
 @app.route('/subscribe')
 @login_required
-def subscribe():
-    return render_template('subscribe.html')
+def subscribe(): return render_template('subscribe.html')
 
 @app.route('/activate/<plan>')
 @login_required
 def activate(plan):
-    if plan not in PLANS:
-        return redirect(url_for('subscribe'))
+    if plan not in PLANS: return redirect(url_for('subscribe'))
     p = PLANS[plan]
     current_user.plan          = plan
     current_user.bw_credits    += p['bw']
@@ -157,27 +139,21 @@ def upload():
         file       = request.files['file']
         print_type = request.form.get('print_type', 'bw')
         copies     = int(request.form.get('copies', 1))
-
         if file and allowed_file(file.filename):
             filepath = os.path.join(UPLOAD_FOLDER, file.filename)
             file.save(filepath)
             pages = count_pages(filepath)
             price = calculate_price(pages, print_type, copies)
-            total_pages = pages * copies
-
-            # Check if user has enough credits
-            has_credits = False
-            if print_type == 'bw' and current_user.bw_credits >= total_pages:
-                has_credits = True
-            elif print_type == 'color' and current_user.color_credits >= total_pages:
-                has_credits = True
-
+            total = pages * copies
+            has_credits = (
+                (print_type == 'bw'    and current_user.bw_credits    >= total) or
+                (print_type == 'color' and current_user.color_credits >= total)
+            )
             return render_template('result.html',
-                filename=file.filename, pages=pages,
-                print_type=print_type, copies=copies,
-                price=price, has_credits=has_credits,
-                filepath=filepath)
-
+                filename=file.filename, filepath=filepath,
+                pages=pages, print_type=print_type,
+                copies=copies, price=price,
+                has_credits=has_credits)
         return '<h2>Invalid file type!</h2>'
     return render_template('upload.html')
 
@@ -190,28 +166,15 @@ def use_credits():
     copies     = int(request.form['copies'])
     filepath   = request.form['filepath']
     total      = pages * copies
-
-    # Deduct credits
-    if print_type == 'bw':
-        current_user.bw_credits -= total
-    else:
-        current_user.color_credits -= total
-
-    # Save order
-    order = Order(
-        user_id    = current_user.id,
-        filename   = filename,
-        pages      = pages,
-        print_type = print_type,
-        copies     = copies,
-        amount     = 0,
-        paid_by    = 'credits',
-        status     = 'printing'
-    )
-    db.session.add(order)
-    db.session.commit()
-
+    if print_type == 'bw': current_user.bw_credits    -= total
+    else:                  current_user.color_credits -= total
+    order = Order(user_id=current_user.id, filename=filename,
+                  pages=pages, print_type=print_type,
+                  copies=copies, amount=0,
+                  paid_by='credits', status='printing')
+    db.session.add(order); db.session.commit()
     return render_template('success.html', order=order)
+
 @app.route('/pay', methods=['POST'])
 @login_required
 def pay():
@@ -221,32 +184,25 @@ def pay():
     copies     = int(request.form['copies'])
     filepath   = request.form['filepath']
     price      = calculate_price(pages, print_type, copies)
-
     order = Order(user_id=current_user.id, filename=filename,
                   pages=pages, print_type=print_type,
                   copies=copies, amount=price,
                   paid_by='razorpay', status='pending')
-    db.session.add(order)
-    db.session.commit()
-
+    db.session.add(order); db.session.commit()
     rzp_order = client.order.create({
         'amount'  : int(price * 100),
         'currency': 'INR',
         'receipt' : f'order_{order.id}'
     })
-
     return render_template('payment.html',
-        filename          = filename,
-        pages             = pages,
-        print_type        = print_type,
-        copies            = copies,
-        price             = price,
-        amount_paise      = int(price * 100),
-        razorpay_key      = RAZORPAY_KEY,
-        razorpay_order_id = rzp_order['id'],
-        order_id          = order.id,
-        user_name         = current_user.name,
-        user_email        = current_user.email)
+        filename=filename, pages=pages,
+        print_type=print_type, copies=copies,
+        price=price, amount_paise=int(price * 100),
+        razorpay_key=RAZORPAY_KEY,
+        razorpay_order_id=rzp_order['id'],
+        order_id=order.id,
+        user_name=current_user.name,
+        user_email=current_user.email)
 
 @app.route('/payment-success')
 @login_required
@@ -255,10 +211,8 @@ def payment_success():
     order_id          = request.args.get('order_id')
     razorpay_order_id = request.args.get('razorpay_order_id')
     signature         = request.args.get('razorpay_signature')
-
     msg      = f'{razorpay_order_id}|{payment_id}'.encode()
     expected = hmac.new(RAZORPAY_SECRET.encode(), msg, hashlib.sha256).hexdigest()
-
     order = Order.query.get(order_id)
     if expected == signature:
         order.payment_id = payment_id
