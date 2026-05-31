@@ -5,6 +5,9 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import os
 import PyPDF2
 import datetime
+import razorpay
+import hmac
+import hashlib
 
 app = Flask(__name__)
 app.config['SECRET_KEY']              = 'campusprint2026'
@@ -13,6 +16,11 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
 db            = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
+
+# ── Razorpay Keys ────────────────────────────────
+RAZORPAY_KEY    = os.environ.get('SvoqP8nKPYfwG5')
+RAZORPAY_SECRET = os.environ.get('gzAEP3STkfZmIPJBnXRUxsWY')
+client          = razorpay.Client(auth=(RAZORPAY_KEY, RAZORPAY_SECRET))
 
 UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -202,6 +210,63 @@ def use_credits():
     db.session.commit()
 
     return render_template('success.html', order=order)
+@app.route('/pay', methods=['POST'])
+@login_required
+def pay():
+    filename   = request.form['filename']
+    print_type = request.form['print_type']
+    pages      = int(request.form['pages'])
+    copies     = int(request.form['copies'])
+    filepath   = request.form['filepath']
+    price      = calculate_price(pages, print_type, copies)
+
+    order = Order(user_id=current_user.id, filename=filename,
+                  pages=pages, print_type=print_type,
+                  copies=copies, amount=price,
+                  paid_by='razorpay', status='pending')
+    db.session.add(order)
+    db.session.commit()
+
+    rzp_order = client.order.create({
+        'amount'  : int(price * 100),
+        'currency': 'INR',
+        'receipt' : f'order_{order.id}'
+    })
+
+    return render_template('payment.html',
+        filename          = filename,
+        pages             = pages,
+        print_type        = print_type,
+        copies            = copies,
+        price             = price,
+        amount_paise      = int(price * 100),
+        razorpay_key      = RAZORPAY_KEY,
+        razorpay_order_id = rzp_order['id'],
+        order_id          = order.id,
+        user_name         = current_user.name,
+        user_email        = current_user.email)
+
+@app.route('/payment-success')
+@login_required
+def payment_success():
+    payment_id        = request.args.get('payment_id')
+    order_id          = request.args.get('order_id')
+    razorpay_order_id = request.args.get('razorpay_order_id')
+    signature         = request.args.get('razorpay_signature')
+
+    msg      = f'{razorpay_order_id}|{payment_id}'.encode()
+    expected = hmac.new(RAZORPAY_SECRET.encode(), msg, hashlib.sha256).hexdigest()
+
+    order = Order.query.get(order_id)
+    if expected == signature:
+        order.payment_id = payment_id
+        order.status     = 'printing'
+        db.session.commit()
+        return render_template('paid_success.html', order=order)
+    else:
+        order.status = 'failed'
+        db.session.commit()
+        return '<h2>Payment failed! Contact support.</h2>'
 
 if __name__ == '__main__':
     with app.app_context():
