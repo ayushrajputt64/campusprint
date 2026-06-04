@@ -15,8 +15,8 @@ db            = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
-RAZORPAY_KEY    = os.environ.get('RAZORPAY_KEY')
-RAZORPAY_SECRET = os.environ.get('RAZORPAY_SECRET')
+RAZORPAY_KEY    = os.environ.get('SvpmFPZLmXVghO')
+RAZORPAY_SECRET = os.environ.get('tMtLsceXVTFfxxTVndeWXjq7')
 client          = razorpay.Client(auth=(RAZORPAY_KEY, RAZORPAY_SECRET))
 
 UPLOAD_FOLDER = 'uploads'
@@ -253,10 +253,11 @@ def payment_success():
         db.session.commit()
         return '<h2>Payment failed! Contact support.</h2>'
 
-if __name__ == '__main__':
-    with app.app_context():
+with app.app_context():
     db.drop_all()
     db.create_all()
     print('Database ready!')
+
+if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
