@@ -254,10 +254,9 @@ def payment_success():
         return '<h2>Payment failed! Contact support.</h2>'
 
 with app.app_context():
-    db.drop_all()
     db.create_all()
     print('Database ready!')
-    
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
