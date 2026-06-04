@@ -254,8 +254,23 @@ def payment_success():
         return '<h2>Payment failed! Contact support.</h2>'
 
 with app.app_context():
-    db.create_all()
-    print('Database ready!')
+    # Only reset if database has wrong structure
+    try:
+        # Test if all columns exist
+        from sqlalchemy import inspect
+        inspector = inspect(db.engine)
+        columns = [c['name'] for c in inspector.get_columns('order')]
+        if 'payment_id' not in columns:
+            db.drop_all()
+            db.create_all()
+            print('Database reset — new columns added!')
+        else:
+            db.create_all()
+            print('Database ready!')
+    except:
+        db.drop_all()
+        db.create_all()
+        print('Database created fresh!')
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
