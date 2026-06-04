@@ -254,7 +254,6 @@ def payment_success():
         return '<h2>Payment failed! Contact support.</h2>'
 
 with app.app_context():
-    db.drop_all()
     db.create_all()
     print('Database ready!')
 
