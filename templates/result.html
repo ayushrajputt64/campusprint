@@ -47,7 +47,16 @@
         </form>
         {% endif %}
 
-        <a class="btn" href="#">💳 Pay with Razorpay (Coming Day 4)</a>
+        <form action="/pay" method="POST">
+    <input type="hidden" name="filename"   value="{{ filename }}">
+    <input type="hidden" name="print_type" value="{{ print_type }}">
+    <input type="hidden" name="pages"      value="{{ pages }}">
+    <input type="hidden" name="copies"     value="{{ copies }}">
+    <input type="hidden" name="filepath"   value="{{ filepath }}">
+    <button type="submit" class="btn">
+        💳 Pay ₹{{ price }} with UPI / Card
+    </button>
+</form>
     </div>
     <a class="back" href="/upload">← Upload another file</a>
 </body>
